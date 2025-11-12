@@ -72,3 +72,12 @@ It helps automate attendance, salary, leave tracking, and working-hour managemen
 
 TMPVL/ ├── App.js ├── backend/ │   ├── server.js │   ├── db.js │   ├── schema.sql │   ├── routes/ │   ├── controllers/ │   └── .env ├── components/ ├── assets/ ├── package.json └── README.md
 
+---
+## 👨‍💻 Developed By
+
+TOX1C ⚡
+-📱 Full Stack Developer | React Native • Node.js • PostgreSQL
+-🌐 GitHub: Tox1C-2x
+⌯⌲ Telegram: t.me/Tox1C_2x
+
+
