@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Tox1C-2x/TMPVL/main/banner.png" alt="TMPVL - Tata Motors Employee Portal" width="100%" />
+</p>
+
 # 🚀 TMPVL – TATA Employee Portal
 
 TMPVL (TATA Management Portal for Virtual Labor) is a **cross-platform employee management app** built using **React Native (Expo)**, **Node.js (Express)**, and **PostgreSQL**.  
@@ -75,9 +79,9 @@ TMPVL/ ├── App.js ├── backend/ │   ├── server.js │   ├�
 ---
 ## 👨‍💻 Developed By
 
-TOX1C ⚡
--📱 Full Stack Developer | React Native • Node.js • PostgreSQL
--🌐 GitHub: Tox1C-2x
-⌯⌲ Telegram: t.me/Tox1C_2x
+- TOX1C ⚡
+- **📱 Full Stack Developer | React Native • Node.js • PostgreSQL
+- **🌐 GitHub: Tox1C-2x
+- **⌯⌲ Telegram: t.me/Tox1C_2x
 
 
