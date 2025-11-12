@@ -1,11 +1,74 @@
-# Sample Snack app
+# 🚀 TMPVL – TATA Employee Portal
 
-Open the `App.js` file to start writing some code. You can preview the changes directly on your phone or tablet by scanning the **QR code** or use the iOS or Android emulators. When you're done, click **Save** and share the link!
+TMPVL (TATA Management Portal for Virtual Labor) is a **cross-platform employee management app** built using **React Native (Expo)**, **Node.js (Express)**, and **PostgreSQL**.  
+It helps automate attendance, salary, leave tracking, and working-hour management for employees — all in one modern mobile dashboard.
 
-When you're ready to see everything that Expo provides (or if you want to use your own editor) you can **Download** your project and use it with [expo cli](https://docs.expo.dev/get-started/installation/#expo-cli)).
+---
 
-All projects created in Snack are publicly available, so you can easily share the link to this project via link, or embed it on a web page with the `<>` button.
+## 🧩 Features
 
-If you're having problems, you can tweet to us [@expo](https://twitter.com/expo) or ask in our [forums](https://forums.expo.dev/c/expo-dev-tools/61) or [Discord](https://chat.expo.dev/).
+### 🔐 Authentication & Security
+- Secure **Login / Registration** system for employees & admins  
+- **JWT-based authentication** for API access  
+- **Password encryption** using bcrypt  
+- Role-based access control (Employee / HR / Admin)
 
-Snack is Open Source. You can find the code on the [GitHub repo](https://github.com/expo/snack).
+### 🕒 Attendance Management
+- Check-In / Check-Out system with timestamps  
+- Auto calculation of total working hours  
+- Real-time sync with backend  
+- Displays “Present / Absent / Late” status  
+- Shift-based attendance tracking  
+
+### 📅 Leave Management
+- Apply for leave with reason and duration  
+- Manager approval & rejection workflow  
+- View leave history and balance  
+- Instant status updates (Approved / Rejected)
+
+### 💰 Salary Management
+- Auto salary calculation based on attendance  
+- Monthly **Salary Slip Generation (PDF)**  
+- View / Download slips in the app  
+- Tracks bonuses, deductions & overtime
+
+### 📊 Dashboard & Analytics
+- Personalized employee dashboard  
+- Cards showing attendance %, working hours, and salary  
+- Modern visual indicators with gradients and icons  
+- Real-time data fetched from backend
+
+### 🧭 Shift & Work Hours
+- Dynamic shift allocation (Morning / Evening / Night)  
+- Displays working hours, overtime, and break times  
+
+### ⚙️ Backend & Database
+- RESTful API built with **Express.js**  
+- Data stored in **PostgreSQL**  
+- CORS-enabled secure API endpoints  
+- Scalable modular architecture  
+
+### 🎨 Frontend (Expo + React Native)
+- Built using **Expo SDK 54**  
+- Clean UI with **Lucide Icons** & **LinearGradient**  
+- Uses **React Navigation** (Stack + Bottom Tabs)  
+- Responsive design for Android & iOS  
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+|-------|---------------|
+| **Frontend** | React Native, Expo, Lucide Icons, Tailwind CSS (converted via StyleSheet) |
+| **Backend** | Node.js, Express.js |
+| **Database** | PostgreSQL |
+| **Security** | JWT Auth, bcrypt, dotenv |
+| **Version Control** | Git & GitHub |
+
+---
+
+## ⚡ Project Structure
+
+TMPVL/ ├── App.js ├── backend/ │   ├── server.js │   ├── db.js │   ├── schema.sql │   ├── routes/ │   ├── controllers/ │   └── .env ├── components/ ├── assets/ ├── package.json └── README.md
+
