@@ -1,0 +1,2205 @@
+// TMPVL - Complete React Native App
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  StatusBar,
+  SafeAreaView,
+  Modal,
+  TextInput,
+  Image,
+  Dimensions,
+  Platform,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import io from 'socket.io-client';
+
+const { width, height } = Dimensions.get('window');
+const Tab = createBottomTabNavigator();
+const AuthStack = createStackNavigator(); // For Login/Register
+const MainStack = createStackNavigator(); // For main app (to host tabs)
+
+// Colors
+const COLORS = {
+  primary: '#2563eb',
+  secondary: '#1e40af',
+  success: '#059669',
+  danger: '#dc2626',
+  warning: '#d97706',
+  info: '#0891b2',
+  light: '#f8fafc',
+  dark: '#1e293b',
+  gray: '#64748b',
+  white: '#ffffff',
+  background: '#f1f5f9',
+};
+
+// Socket connection
+let socket = null;
+
+// --- AUTH SCREENS ---
+
+// 1. Login Screen
+const LoginScreen = ({ navigation, setIsLoggedIn, setUser }) => {
+  const [empId, setEmpId] = useState('TCS001234');
+  const [password, setPassword] = useState('password123');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!empId || !password) {
+      Alert.alert('Error', 'Please enter Employee ID and Password');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Mock login - Replace with actual API call
+      const mockUser = {
+        empId: 'TCS001234',
+        name: 'राज कुमार शर्मा',
+        department: 'IT Department',
+        designation: 'Software Engineer',
+        shift: 'Morning (9:00 AM - 6:00 PM)',
+      };
+
+      await AsyncStorage.setItem('authToken', 'mock-token-123');
+      await AsyncStorage.setItem('userData', JSON.stringify(mockUser));
+
+      setUser(mockUser);
+      setIsLoggedIn(true);
+    } catch (error) {
+      Alert.alert('Login Failed', 'Please check your credentials');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.loginContainer}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+      >
+        <View style={styles.loginHeader}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>T</Text>
+          </View>
+          <Text style={styles.appTitle}>TMPVL</Text>
+          <Text style={styles.appSubtitle}>TATA Employee Portal</Text>
+        </View>
+
+        <View style={styles.loginForm}>
+          <View style={styles.inputContainer}>
+            <Icon
+              name="person"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Employee ID"
+              value={empId}
+              onChangeText={setEmpId}
+              autoCapitalize="characters"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Icon
+              name="lock"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.loginButton, isLoading && styles.disabledButton]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.loginButtonText}>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* NEW: Register Button */}
+          <TouchableOpacity
+            style={styles.registerLinkButton}
+            onPress={() => navigation.navigate('Register')}
+          >
+            <Text style={styles.registerLinkText}>
+              New user? <Text style={styles.registerLinkBold}>Register here</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 2. Register Screen
+const RegisterScreen = ({ navigation }) => {
+  const [name, setName] = useState('');
+  const [ticketNo, setTicketNo] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
+
+  const handleRegister = () => {
+    // Simple validation
+    if (!name || !ticketNo || !mobile || !email) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+    if (ticketNo.length !== 6) {
+      Alert.alert('Error', 'Ticket Number must be 6 digits');
+      return;
+    }
+    if (mobile.length !== 10) {
+      Alert.alert('Error', 'Mobile Number must be 10 digits');
+      return;
+    }
+    // Mock API call and then...
+    Alert.alert('Registration Sent', 'OTP sent to your mobile and email.');
+    navigation.navigate('VerifyOTP', { email, mobile });
+  };
+
+  return (
+    <SafeAreaView style={styles.loginContainer}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 20 }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={24} color={COLORS.dark} />
+          <Text style={styles.backButtonText}>Back to Login</Text>
+        </TouchableOpacity>
+
+        <View style={styles.loginHeader}>
+          <Text style={styles.appTitle}>Create Account</Text>
+          <Text style={styles.appSubtitle}>Join the TMPVL portal</Text>
+        </View>
+
+        <View style={styles.loginForm}>
+          {/* Name */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="badge"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Full Name"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          {/* Ticket Number */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="confirmation-number"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Ticket Number (6 digits)"
+              value={ticketNo}
+              onChangeText={setTicketNo}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+          </View>
+
+          {/* Mobile Number */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.prefixText}>+91</Text>
+            <TextInput
+              style={[styles.textInput, { paddingLeft: 10 }]}
+              placeholder="Mobile Number (10 digits)"
+              value={mobile}
+              onChangeText={setMobile}
+              keyboardType="numeric"
+              maxLength={10}
+            />
+          </View>
+
+          {/* Email ID */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="email"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Email ID (e.g., user@gmail.com)"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleRegister}
+          >
+            <Text style={styles.loginButtonText}>Register Now</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 3. Verify OTP Screen
+const VerifyOTPScreen = ({ navigation, route }) => {
+  const { email, mobile } = route.params;
+  const [emailOtp, setEmailOtp] = useState('');
+  const [mobileOtp, setMobileOtp] = useState('');
+
+  const handleVerify = () => {
+    if (!emailOtp || !mobileOtp) {
+      Alert.alert('Error', 'Please enter both OTPs');
+      return;
+    }
+    // Mock OTP check
+    Alert.alert('Success', 'OTP Verified. Please set your password.');
+    navigation.navigate('SetPassword', { email }); // Pass user identifier
+  };
+
+  return (
+    <SafeAreaView style={styles.loginContainer}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 20 }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={24} color={COLORS.dark} />
+          <Text style={styles.backButtonText}>Back to Register</Text>
+        </TouchableOpacity>
+
+        <View style={styles.loginHeader}>
+          <Text style={styles.appTitle}>Verify Account</Text>
+          <Text style={styles.appSubtitle}>
+            Enter OTP sent to {email} and {mobile}
+          </Text>
+        </View>
+
+        <View style={styles.loginForm}>
+          {/* Email OTP */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="mark-email-read"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Email OTP"
+              value={emailOtp}
+              onChangeText={setEmailOtp}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+          </View>
+
+          {/* Mobile OTP */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="sms"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Mobile OTP"
+              value={mobileOtp}
+              onChangeText={setMobileOtp}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.loginButton} onPress={handleVerify}>
+            <Text style={styles.loginButtonText}>Verify & Proceed</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 4. Set Password Screen
+const SetPasswordScreen = ({ navigation, route, setIsLoggedIn, setUser }) => {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleSetPassword = async () => {
+    if (!password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill both fields');
+      return;
+    }
+    if (password.length < 8 || password.length > 14) {
+      Alert.alert('Error', 'Password must be 8-14 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    // Mock final registration and login
+    const mockUser = {
+      empId: 'NEW_USER_001', // Should come from API
+      name: 'New Registered User', // Should come from API
+      ...route.params, // email
+    };
+
+    await AsyncStorage.setItem('authToken', 'mock-token-for-new-user');
+    await AsyncStorage.setItem('userData', JSON.stringify(mockUser));
+
+    setUser(mockUser);
+    setIsLoggedIn(true);
+    
+    Alert.alert('Success', 'Registration complete. You are now logged in.');
+  };
+
+  return (
+    <SafeAreaView style={styles.loginContainer}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 20 }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={24} color={COLORS.dark} />
+          <Text style={styles.backButtonText}>Back to OTP</Text>
+        </TouchableOpacity>
+
+        <View style={styles.loginHeader}>
+          <Text style={styles.appTitle}>Set Password</Text>
+          <Text style={styles.appSubtitle}>
+            Must be 8-14 characters with upper & lower case.
+          </Text>
+        </View>
+
+        <View style={styles.loginForm}>
+          {/* Password */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="lock"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          {/* Confirm Password */}
+          <View style={styles.inputContainer}>
+            <Icon
+              name="lock-check"
+              size={20}
+              color={COLORS.gray}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleSetPassword}
+          >
+            <Text style={styles.loginButtonText}>Set Password & Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// --- AUTH STACK NAVIGATOR ---
+const AuthNavigator = ({ setIsLoggedIn, setUser }) => (
+  <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Screen name="Login">
+      {(props) => (
+        <LoginScreen
+          {...props}
+          setIsLoggedIn={setIsLoggedIn}
+          setUser={setUser}
+        />
+      )}
+    </AuthStack.Screen>
+    <AuthStack.Screen name="Register" component={RegisterScreen} />
+    <AuthStack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
+    <AuthStack.Screen name="SetPassword">
+      {(props) => (
+        <SetPasswordScreen
+          {...props}
+          setIsLoggedIn={setIsLoggedIn}
+          setUser={setUser}
+        />
+      )}
+    </AuthStack.Screen>
+  </AuthStack.Navigator>
+);
+
+// --- MAIN APP SCREENS ---
+
+// 1. Home Screen (Renamed from Dashboard)
+const HomeScreen = ({ user, setIsLoggedIn }) => {
+  const [currentTime, setCurrentTime] = useState(
+    new Date().toLocaleTimeString('en-IN'),
+  );
+  const [attendanceData, setAttendanceData] = useState({
+    todayStatus: 'Present',
+    checkIn: '09:15 AM',
+    checkOut: null,
+    workingHours: '7h 45m',
+    thisMonth: { present: 22, absent: 2, leaves: 1 },
+  });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('en-IN'));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleLogout = async () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        onPress: async () => {
+          await AsyncStorage.removeItem('authToken');
+          await AsyncStorage.removeItem('userData');
+          if (socket) {
+            socket.disconnect();
+          }
+          setIsLoggedIn(false);
+        },
+      },
+    ]);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.dashboardHeader}>
+          <View style={styles.userInfo}>
+            <Text style={styles.greeting}>नमस्ते, {user.name}</Text>
+            <Text style={styles.designation}>{user.designation}</Text>
+          </View>
+          <TouchableOpacity onPress={handleLogout}>
+            <Icon name="logout" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Status Card */}
+        <View style={styles.statusCard}>
+          <View style={styles.statusHeader}>
+            <View style={styles.statusTitleRow}>
+              <Icon name="access-time" size={24} color={COLORS.white} />
+              <Text style={styles.statusTitle}>Today's Status</Text>
+            </View>
+            <View style={styles.liveIndicator}>
+              <Text style={styles.liveText}>Live</Text>
+            </View>
+          </View>
+
+          <View style={styles.statusContent}>
+            <View style={styles.statusItem}>
+              <Text style={styles.statusLabel}>Check In</Text>
+              <Text style={styles.statusValue}>{attendanceData.checkIn}</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <Text style={styles.statusLabel}>Status</Text>
+              <Text style={styles.statusValue}>
+                {attendanceData.todayStatus}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statusFooter}>
+            <Text style={styles.currentTime}>Current Time: {currentTime}</Text>
+            <Text style={styles.shiftInfo}>Shift: {user.shift}</Text>
+          </View>
+        </View>
+
+        {/* Quick Stats */}
+        <View style={styles.quickStats}>
+          <View style={styles.statCard}>
+            <Icon name="event-available" size={24} color={COLORS.success} />
+            <Text style={styles.statLabel}>This Month</Text>
+            <Text style={styles.statValue}>
+              {attendanceData.thisMonth.present} Days Present
+            </Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Icon
+              name="account-balance-wallet"
+              size={24}
+              color={COLORS.primary}
+            />
+            <Text style={styles.statLabel}>Net Salary</Text>
+            <Text style={styles.statValue}>₹59,537</Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionGrid}>
+            <TouchableOpacity style={styles.actionCard}>
+              <Icon name="access-time" size={32} color={COLORS.primary} />
+              <Text style={styles.actionTitle}>Attendance</Text>
+              <Text style={styles.actionSubtitle}>View & Mark</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard}>
+              <Icon name="description" size={32} color={COLORS.success} />
+              <Text style={styles.actionTitle}>Salary Slip</Text>
+              <Text style={styles.actionSubtitle}>View & Download</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.recentActivity}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <View style={styles.activityList}>
+            <View style={styles.activityItem}>
+              <View
+                style={[styles.activityDot, { backgroundColor: COLORS.success }]}
+              />
+              <Text style={styles.activityText}>
+                Punched In at Gate 1 - 09:15 AM
+              </Text>
+            </View>
+            <View style={styles.activityItem}>
+              <View
+                style={[styles.activityDot, { backgroundColor: COLORS.primary }]}
+              />
+              <Text style={styles.activityText}>
+                Salary slip for February generated
+              </Text>
+            </View>
+            <View style={styles.activityItem}>
+              <View
+                style={[styles.activityDot, { backgroundColor: COLORS.warning }]}
+              />
+              <Text style={styles.activityText}>Leave request approved</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 2. Attendance Screen
+const AttendanceScreen = ({ user }) => {
+  const [attendanceData, setAttendanceData] = useState({
+    todayStatus: 'Present',
+    checkIn: '09:15 AM',
+    checkOut: null,
+    workingHours: '7h 45m',
+    checkInGate: 'Gate 1 - Main Entry',
+    thisMonth: { present: 22, absent: 2, leaves: 1 },
+  });
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Today's Status */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Today's Attendance</Text>
+
+          <View style={styles.attendanceGrid}>
+            <View style={[styles.attendanceCard, styles.checkInCard]}>
+              <Icon name="login" size={32} color={COLORS.success} />
+              <Text style={styles.attendanceLabel}>Check In</Text>
+              <Text style={styles.attendanceTime}>{attendanceData.checkIn}</Text>
+              <Text style={styles.attendanceLocation}>
+                {attendanceData.checkInGate}
+              </Text>
+            </View>
+
+            <View style={[styles.attendanceCard, styles.checkOutCard]}>
+              <Icon name="logout" size={32} color={COLORS.gray} />
+              <Text style={styles.attendanceLabel}>Check Out</Text>
+              <Text style={styles.attendanceTime}>--:--</Text>
+              <Text style={styles.attendanceLocation}>Not punched yet</Text>
+            </View>
+          </View>
+
+          <View style={styles.workingHoursCard}>
+            <Text style={styles.workingHoursLabel}>Working Hours Today</Text>
+            <Text style={styles.workingHoursValue}>
+              {attendanceData.workingHours}
+            </Text>
+          </View>
+        </View>
+
+        {/* Monthly Summary */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>March 2024 Summary</Text>
+          <View style={styles.summaryGrid}>
+            <View
+              style={[
+                styles.summaryCard,
+                { backgroundColor: COLORS.success + '20' },
+              ]}
+            >
+              <Text style={[styles.summaryValue, { color: COLORS.success }]}>
+                {attendanceData.thisMonth.present}
+              </Text>
+              <Text style={styles.summaryLabel}>Present</Text>
+            </View>
+            <View
+              style={[
+                styles.summaryCard,
+                { backgroundColor: COLORS.danger + '20' },
+              ]}
+            >
+              <Text style={[styles.summaryValue, { color: COLORS.danger }]}>
+                {attendanceData.thisMonth.absent}
+              </Text>
+              <Text style={styles.summaryLabel}>Absent</Text>
+            </View>
+            <View
+              style={[
+                styles.summaryCard,
+                { backgroundColor: COLORS.primary + '20' },
+              ]}
+            >
+              <Text style={[styles.summaryValue, { color: COLORS.primary }]}>
+                {attendanceData.thisMonth.leaves}
+              </Text>
+              <Text style={styles.summaryLabel}>Leaves</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Recent Punches */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Recent Punches</Text>
+          <View style={styles.punchList}>
+            <View style={styles.punchItem}>
+              <View style={styles.punchInfo}>
+                <Text style={styles.punchDate}>Today - March 15</Text>
+                <Text style={styles.punchDetail}>
+                  Check In: 09:15 AM | Gate 1
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: COLORS.success + '20' },
+                ]}
+              >
+                <Text
+                  style={[styles.statusBadgeText, { color: COLORS.success }]}
+                >
+                  Present
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.punchItem}>
+              <View style={styles.punchInfo}>
+                <Text style={styles.punchDate}>March 14</Text>
+                <Text style={styles.punchDetail}>
+                  Check In: 09:05 AM | Check Out: 06:10 PM
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: COLORS.success + '20' },
+                ]}
+              >
+                <Text
+                  style={[styles.statusBadgeText, { color: COLORS.success }]}
+                >
+                  Present
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.punchItem}>
+              <View style={styles.punchInfo}>
+                <Text style={styles.punchDate}>March 13</Text>
+                <Text style={styles.punchDetail}>
+                  Leave Applied - Casual Leave
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: COLORS.primary + '20' },
+                ]}
+              >
+                <Text
+                  style={[styles.statusBadgeText, { color: COLORS.primary }]}
+                >
+                  Leave
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 3. Salary Screen
+const SalaryScreen = ({ user }) => {
+  const [showPreview, setShowPreview] = useState(false);
+  const [salaryData] = useState({
+    currentMonth: 'March 2024',
+    basicSalary: 45000,
+    hra: 18000,
+    medicalAllowance: 1500,
+    transportAllowance: 2000,
+    overtimeAmount: 3500,
+    bonusAmount: 5000,
+    grossSalary: 75000,
+    pfDeduction: 5400,
+    esiDeduction: 562.5,
+    taxDeduction: 8500,
+    otherDeductions: 1000,
+    totalDeductions: 15462.5,
+    netSalary: 59537.5,
+    workingDays: 25,
+    presentDays: 22,
+    leavesTaken: 1,
+    overtimeHours: 15,
+  });
+
+  const handleDownload = () => {
+    Alert.alert('Download', 'Salary slip download started!');
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Current Month Summary */}
+        <View style={[styles.statusCard, { backgroundColor: COLORS.success }]}>
+          <View style={styles.statusHeader}>
+            <Text style={styles.salaryMonth}>{salaryData.currentMonth}</Text>
+            <Text style={styles.salaryLabel}>Net Salary</Text>
+          </View>
+          <Text style={styles.netSalaryAmount}>
+            ₹{salaryData.netSalary.toLocaleString()}
+          </Text>
+          <View style={styles.salaryFooter}>
+            <Text style={styles.salaryFooterText}>
+              Gross: ₹{salaryData.grossSalary.toLocaleString()}
+            </Text>
+            <Text style={styles.salaryFooterText}>
+              Deductions: ₹{salaryData.totalDeductions.toLocaleString()}
+            </Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <View style={styles.actionGrid}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => setShowPreview(true)}
+            >
+              <Icon name="visibility" size={32} color={COLORS.primary} />
+              <Text style={styles.actionTitle}>Preview</Text>
+              <Text style={styles.actionSubtitle}>View Details</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={handleDownload}
+            >
+              <Icon name="file-download" size={32} color={COLORS.success} />
+              <Text style={styles.actionTitle}>Download</Text>
+              <Text style={styles.actionSubtitle}>PDF Format</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Salary History */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Salary History</Text>
+          <View style={styles.historyList}>
+            <View style={styles.historyItem}>
+              <View style={styles.historyInfo}>
+                <Text style={styles.historyMonth}>March 2024</Text>
+                <Text style={styles.historyAmount}>Net: ₹59,537</Text>
+              </View>
+              <View style={styles.historyActions}>
+                <TouchableOpacity style={styles.historyButton}>
+                  <Text
+                    style={[styles.historyButtonText, { color: COLORS.primary }]}
+                  >
+                    Preview
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.historyButton}>
+                  <Text
+                    style={[
+                      styles.historyButtonText,
+                      { color: COLORS.success },
+                    ]}
+                  >
+                    Download
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.historyItem}>
+              <View style={styles.historyInfo}>
+                <Text style={styles.historyMonth}>February 2024</Text>
+                <Text style={styles.historyAmount}>Net: ₹58,420</Text>
+              </View>
+              <View style={styles.historyActions}>
+                <TouchableOpacity style={styles.historyButton}>
+                  <Text
+                    style={[styles.historyButtonText, { color: COLORS.primary }]}
+                  >
+                    Preview
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.historyButton}>
+                  <Text
+                    style={[
+                      styles.historyButtonText,
+                      { color: COLORS.success },
+                    ]}
+                  >
+                    Download
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Salary Preview Modal */}
+        <Modal
+  visible={showPreview}
+  animationType="slide"
+  presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+>
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Salary Breakdown - {salaryData.currentMonth}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowPreview(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={COLORS.dark} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.breakdownGrid}>
+                {/* Earnings */}
+                <View style={styles.breakdownSection}>
+                  <Text
+                    style={[styles.breakdownTitle, { color: COLORS.success }]}
+                  >
+                    Earnings
+                  </Text>
+                  <View style={styles.breakdownItems}>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>Basic Salary</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.basicSalary.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>HRA</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.hra.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>
+                        Medical Allowance
+                      </Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.medicalAllowance.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>
+                        Transport Allowance
+                      </Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.transportAllowance.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>
+                        Overtime ({salaryData.overtimeHours}h)
+                      </Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.overtimeAmount.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>Bonus</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.bonusAmount.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={[styles.breakdownItem, styles.totalItem]}>
+                      <Text style={styles.breakdownTotalLabel}>
+                        Gross Salary
+                      </Text>
+                      <Text style={styles.breakdownTotalValue}>
+                        ₹{salaryData.grossSalary.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Deductions */}
+                <View style={styles.breakdownSection}>
+                  <Text
+                    style={[styles.breakdownTitle, { color: COLORS.danger }]}
+                  >
+                    Deductions
+                  </Text>
+                  <View style={styles.breakdownItems}>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>PF Contribution</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.pfDeduction.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>ESI</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.esiDeduction}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>Income Tax</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.taxDeduction.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Text style={styles.breakdownLabel}>
+                        Other Deductions
+                      </Text>
+                      <Text style={styles.breakdownValue}>
+                        ₹{salaryData.otherDeductions.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={[styles.breakdownItem, styles.totalItem]}>
+                      <Text style={styles.breakdownTotalLabel}>
+                        Total Deductions
+                      </Text>
+                      <Text style={styles.breakdownTotalValue}>
+                        ₹{salaryData.totalDeductions.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Attendance Summary */}
+              <View style={styles.attendanceSummary}>
+                <Text style={styles.breakdownTitle}>Attendance Summary</Text>
+                <View style={styles.summaryGrid}>
+                  <View style={styles.summaryCard}>
+                    <Text
+                      style={[styles.summaryValue, { color: COLORS.primary }]}
+                    >
+                      {salaryData.workingDays}
+                    </Text>
+                    <Text style={styles.summaryLabel}>Working Days</Text>
+                  </View>
+                  <View style={styles.summaryCard}>
+                    <Text
+                      style={[styles.summaryValue, { color: COLORS.success }]}
+                    >
+                      {salaryData.presentDays}
+                    </Text>
+                    <Text style={styles.summaryLabel}>Present</Text>
+                  </View>
+                  <View style={styles.summaryCard}>
+                    <Text
+                      style={[styles.summaryValue, { color: COLORS.warning }]}
+                    >
+                      {salaryData.leavesTaken}
+                    </Text>
+                    <Text style={styles.summaryLabel}>Leaves</Text>
+                  </View>
+                  <View style={styles.summaryCard}>
+                    <Text
+                      style={[styles.summaryValue, { color: COLORS.info }]}
+                    >
+                      {salaryData.overtimeHours}h
+                    </Text>
+                    <Text style={styles.summaryLabel}>Overtime</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Net Salary */}
+              <View
+                style={[
+                  styles.netSalaryCard,
+                  { backgroundColor: COLORS.success + '20' },
+                ]}
+              >
+                <Text style={styles.netSalaryLabel}>Net Salary</Text>
+                <Text
+                  style={[
+                    styles.netSalaryFinalAmount,
+                    { color: COLORS.success },
+                  ]}
+                >
+                  ₹{salaryData.netSalary.toLocaleString()}
+                </Text>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 4. Leaves Screen
+const LeavesScreen = ({ user }) => {
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [leaveBalance] = useState({
+    casual: 8,
+    sick: 10,
+    earned: 15,
+  });
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Leave Balance */}
+        <View style={styles.quickActions}>
+          <Text style={styles.sectionTitle}>Leave Balance</Text>
+          <View style={styles.leaveBalanceGrid}>
+            <View
+              style={[
+                styles.leaveBalanceCard,
+                { borderLeftColor: COLORS.primary },
+              ]}
+            >
+              <Text
+                style={[styles.leaveBalanceTitle, { color: COLORS.primary }]}
+              >
+                Casual Leave
+              </Text>
+              <Text style={styles.leaveBalanceValue}>
+                {leaveBalance.casual}
+              </Text>
+              <Text style={styles.leaveBalanceLabel}>Available</Text>
+            </View>
+            <View
+              style={[
+                styles.leaveBalanceCard,
+                { borderLeftColor: COLORS.success },
+              ]}
+            >
+              <Text
+                style={[styles.leaveBalanceTitle, { color: COLORS.success }]}
+              >
+                Sick Leave
+              </Text>
+              <Text style={styles.leaveBalanceValue}>{leaveBalance.sick}</Text>
+              <Text style={styles.leaveBalanceLabel}>Available</Text>
+            </View>
+            <View
+              style={[
+                styles.leaveBalanceCard,
+                { borderLeftColor: COLORS.info },
+              ]}
+            >
+              <Text style={[styles.leaveBalanceTitle, { color: COLORS.info }]}>
+                Earned Leave
+              </Text>
+              <Text style={styles.leaveBalanceValue}>
+                {leaveBalance.earned}
+              </Text>
+              <Text style={styles.leaveBalanceLabel}>Available</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Apply Leave Button */}
+        <TouchableOpacity
+          style={styles.applyLeaveButton}
+          onPress={() => setShowApplyModal(true)}
+        >
+          <Icon name="add" size={24} color={COLORS.white} />
+          <Text style={styles.applyLeaveButtonText}>Apply for Leave</Text>
+        </TouchableOpacity>
+
+        {/* Recent Leave Applications */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Recent Applications</Text>
+          <View style={styles.leaveApplicationsList}>
+            <View style={styles.leaveApplicationItem}>
+              <View style={styles.leaveApplicationInfo}>
+                <Text style={styles.leaveApplicationDate}>
+                  March 13-14, 2024
+                </Text>
+                <Text style={styles.leaveApplicationType}>
+                  Casual Leave - 2 days
+                </Text>
+                <Text style={styles.leaveApplicationReason}>Personal work</Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: COLORS.success + '20' },
+                ]}
+              >
+                <Text
+                  style={[styles.statusBadgeText, { color: COLORS.success }]}
+                >
+                  Approved
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.leaveApplicationItem}>
+              <View style={styles.leaveApplicationInfo}>
+                <Text style={styles.leaveApplicationDate}>March 20, 2024</Text>
+                <Text style={styles.leaveApplicationType}>
+                  Sick Leave - 1 day
+                </Text>
+                <Text style={styles.leaveApplicationReason}>
+                  Medical checkup
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: COLORS.warning + '20' },
+                ]}
+              >
+                <Text
+                  style={[styles.statusBadgeText, { color: COLORS.warning }]}
+                >
+                  Pending
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Apply Leave Modal */}
+         <Modal
+  visible={showApplyModal}
+  animationType="slide"
+  presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+>
+
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Apply for Leave</Text>
+              <TouchableOpacity
+                onPress={() => setShowApplyModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={COLORS.dark} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.formContainer}>
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Leave Type</Text>
+                  <View style={styles.pickerContainer}>
+                    <Text style={styles.pickerText}>Casual Leave</Text>
+                    <Icon
+                      name="keyboard-arrow-down"
+                      size={24}
+                      color={COLORS.gray}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.formRow}>
+                  <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                    <Text style={styles.formLabel}>From Date</Text>
+                    <TouchableOpacity style={styles.dateInput}>
+                      <Text style={styles.dateText}>Select Date</Text>
+                      <Icon name="event" size={20} color={COLORS.gray} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                    <Text style={styles.formLabel}>To Date</Text>
+                    <TouchableOpacity style={styles.dateInput}>
+                      <Text style={styles.dateText}>Select Date</Text>
+                      <Icon name="event" size={20} color={COLORS.gray} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Reason</Text>
+                  <TextInput
+                    style={styles.textArea}
+                    placeholder="Enter reason for leave..."
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <TouchableOpacity style={styles.submitButton}>
+                  <Text style={styles.submitButtonText}>
+                    Submit Leave Application
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// --- MAIN APP TAB NAVIGATOR ---
+const MainAppNavigator = ({ user, setIsLoggedIn }) => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          
+          if (route.name === 'Home') { // 'Dashboard' se 'Home'
+            iconName = 'home'; // 'dashboard' se 'home'
+          } else if (route.name === 'Attendance') {
+            iconName = 'access-time';
+          } else if (route.name === 'Salary') {
+            iconName = 'account-balance-wallet';
+          } else if (route.name === 'Leaves') {
+            iconName = 'event-available';
+          }
+
+          return <Icon name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.gray,
+        headerShown: false, // Header ko tab navigator se hata diya
+      })}
+    >
+      <Tab.Screen name="Home"> 
+        {(props) => (
+          <HomeScreen
+            {...props}
+            user={user}
+            setIsLoggedIn={setIsLoggedIn}
+          />
+        )}
+      </Tab.Screen>
+      <Tab.Screen name="Attendance">
+        {(props) => <AttendanceScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="Salary">
+        {(props) => <SalaryScreen {...props} user={user} />}
+      </Tab.Screen>
+      <Tab.Screen name="Leaves">
+        {(props) => <LeavesScreen {...props} user={user} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
+};
+
+// --- MAIN APP COMPONENT ---
+const TMPVL = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const userData = await AsyncStorage.getItem('userData');
+
+      if (token && userData) {
+        setUser(JSON.parse(userData));
+        setIsLoggedIn(true);
+        initializeSocket(JSON.parse(userData).empId);
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initializeSocket = (empId) => {
+    // socket = io('http://your-server-url:3000'); // Apna server URL yahan daalein
+    // socket.emit('join', empId);
+    // ... socket listeners ...
+    console.log('Socket initialized for', empId);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading TMPVL...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+      {isLoggedIn ? (
+        <MainAppNavigator user={user} setIsLoggedIn={setIsLoggedIn} />
+      ) : (
+        <AuthNavigator setIsLoggedIn={setIsLoggedIn} setUser={setUser} />
+      )}
+    </NavigationContainer>
+  );
+};
+
+// --- STYLES ---
+const styles = StyleSheet.create({
+  // Loading & Container Styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: COLORS.dark,
+    fontWeight: '600',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContainer: {
+    flex: 1,
+    padding: 16,
+  },
+
+  // Login & Register Styles
+  loginContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loginHeader: {
+    alignItems: 'center',
+    marginBottom: 40,
+    marginTop: 20,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    backgroundColor: COLORS.primary,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoText: {
+    color: COLORS.white,
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  appTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    marginBottom: 8,
+  },
+  appSubtitle: {
+    fontSize: 16,
+    color: COLORS.gray,
+    textAlign: 'center',
+  },
+  loginForm: {
+    marginTop: 20,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: COLORS.dark,
+  },
+  prefixText: {
+    fontSize: 16,
+    color: COLORS.dark,
+    paddingLeft: 4,
+    marginRight: 4,
+  },
+  loginButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  loginButtonText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  registerLinkButton: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  registerLinkText: {
+    fontSize: 16,
+    color: COLORS.gray,
+  },
+  registerLinkBold: {
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: COLORS.dark,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+
+  // Home (Dashboard) Styles
+  dashboardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  designation: {
+    fontSize: 16,
+    color: COLORS.gray,
+  },
+
+  // Status Card Styles
+  statusCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statusTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusTitle: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  liveIndicator: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  liveText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statusItem: {
+    flex: 1,
+  },
+  statusLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  statusValue: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  statusFooter: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    paddingTop: 16,
+  },
+  currentTime: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  shiftInfo: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+  },
+
+  // Quick Stats
+  quickStats: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    padding: 16,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.gray,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    textAlign: 'center',
+  },
+
+  // Quick Actions
+  quickActions: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    marginBottom: 12,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+  },
+  actionCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  actionSubtitle: {
+    fontSize: 12,
+    color: COLORS.gray,
+  },
+
+  // Card Styles
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginBottom: 16,
+  },
+
+  // Recent Activity
+  recentActivity: {
+    marginBottom: 20,
+  },
+  activityList: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  activityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  activityText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.dark,
+  },
+
+  // Attendance Specific Styles
+  attendanceGrid: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  attendanceCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  checkInCard: {
+    backgroundColor: COLORS.success + '20',
+  },
+  checkOutCard: {
+    backgroundColor: COLORS.gray + '20',
+  },
+  attendanceLabel: {
+    fontSize: 12,
+    color: COLORS.gray,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  attendanceTime: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  attendanceLocation: {
+    fontSize: 10,
+    color: COLORS.gray,
+    textAlign: 'center',
+  },
+  workingHoursCard: {
+    backgroundColor: COLORS.primary + '20',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  workingHoursLabel: {
+    fontSize: 14,
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  workingHoursValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+
+  // Summary Grid
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  summaryCard: {
+    width: (width - 64) / 3,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: COLORS.gray,
+  },
+
+  // Punch List
+  punchList: {
+    marginTop: 8,
+  },
+  punchItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  punchInfo: {
+    flex: 1,
+  },
+  punchDate: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  punchDetail: {
+    fontSize: 12,
+    color: COLORS.gray,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+
+  // Salary Specific Styles
+  salaryMonth: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    marginBottom: 4,
+  },
+  salaryLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+  },
+  netSalaryAmount: {
+    color: COLORS.white,
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  salaryFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  salaryFooterText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+  },
+
+  // History Styles
+  historyList: {
+    marginTop: 8,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyMonth: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  historyAmount: {
+    fontSize: 12,
+    color: COLORS.gray,
+  },
+  historyActions: {
+    flexDirection: 'row',
+  },
+  historyButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 8,
+    backgroundColor: '#f1f5f9',
+  },
+  historyButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: COLORS.white,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+
+  // Breakdown Styles
+  breakdownGrid: {
+    marginBottom: 20,
+  },
+  breakdownSection: {
+    marginBottom: 20,
+  },
+  breakdownTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  breakdownItems: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+  },
+  breakdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  breakdownLabel: {
+    fontSize: 14,
+    color: COLORS.dark,
+  },
+  breakdownValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.dark,
+  },
+  totalItem: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 12,
+    marginTop: 8,
+  },
+  breakdownTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.dark,
+  },
+  breakdownTotalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+  },
+
+  // Attendance Summary in Modal
+  attendanceSummary: {
+    marginBottom: 20,
+  },
+  netSalaryCard: {
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  netSalaryLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginBottom: 8,
+  },
+  netSalaryFinalAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+
+  // Leave Specific Styles
+  leaveBalanceGrid: {
+    marginTop: 8,
+  },
+  leaveBalanceCard: {
+    backgroundColor: COLORS.white,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 3,
+  },
+  leaveBalanceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  leaveBalanceValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  leaveBalanceLabel: {
+    fontSize: 12,
+    color: COLORS.gray,
+  },
+  applyLeaveButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  applyLeaveButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+
+  // Leave Applications
+  leaveApplicationsList: {
+    marginTop: 8,
+  },
+  leaveApplicationItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  leaveApplicationInfo: {
+    flex: 1,
+  },
+  leaveApplicationDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginBottom: 4,
+  },
+  leaveApplicationType: {
+    fontSize: 12,
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  leaveApplicationReason: {
+    fontSize: 12,
+    color: COLORS.gray,
+  },
+
+  // Form Styles
+  formContainer: {
+    padding: 4,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formRow: {
+    flexDirection: 'row',
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.dark,
+    marginBottom: 8,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 16,
+  },
+  pickerText: {
+    fontSize: 16,
+    color: COLORS.dark,
+  },
+  dateInput: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 16,
+  },
+  dateText: {
+    fontSize: 16,
+    color: COLORS.gray,
+  },
+  textArea: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    color: COLORS.dark,
+    minHeight: 100,
+  },
+  submitButton: {
+    backgroundColor: COLORS.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
+export default TMPVL;
+
+
