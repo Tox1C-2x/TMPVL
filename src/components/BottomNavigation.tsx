@@ -102,7 +102,7 @@ const BottomNavigation = ({ currentScreen, setCurrentScreen }) => {
   );
 };
 
-export default BottomNavigation;
+export default BottomNavigation; 
 
 
 
