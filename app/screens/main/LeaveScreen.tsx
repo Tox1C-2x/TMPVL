@@ -11,7 +11,7 @@ import {
 import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react-native'; // Icons update kiye
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import styles from '../../styles/styles';
+import styles from '@/styles/styles';
 
 const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
   const [leaveType, setLeaveType] = useState('Casual Leave');

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, DollarSign, Eye, Download, X } from 'lucide-react-native';
-import styles from '../../styles/styles';
+import styles from '@/styles/styles';
 
 const RenderSalaryDetail = ({ label, value, isBold = false, isDeduction = false }) => (
   <View style={styles.detailRow}>

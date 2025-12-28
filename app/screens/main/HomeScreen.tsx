@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Clock, Calendar, DollarSign, FileText } from 'lucide-react-native';
-import styles from '../../styles/styles';
+import styles from '@/styles/styles';
 
 const HomeScreen = ({
   user,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Home, Clock, FileText, Calendar } from 'lucide-react-native';
-import styles from '../styles/styles';
+import styles from '@/styles/styles';
 
 const BottomNavigation = ({ currentScreen, setCurrentScreen }) => {
   
@@ -103,5 +103,6 @@ const BottomNavigation = ({ currentScreen, setCurrentScreen }) => {
 };
 
 export default BottomNavigation;
+
 
 

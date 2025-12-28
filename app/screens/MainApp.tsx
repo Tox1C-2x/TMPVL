@@ -11,9 +11,9 @@ import { Menu } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 // Imported Modules
-import styles from '../styles/styles.js';
-import BottomNavigation from '../components/BottomNavigation';
-import SideMenu from '../components/SideMenu';
+import styles from '@/styles/styles.ts';
+import BottomNavigation from '@/components/BottomNavigation';
+import SideMenu from '@/components/SideMenu';
 
 // Screens
 import HomeScreen from './main/HomeScreen';

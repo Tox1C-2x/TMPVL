@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { ArrowLeft, Clock } from 'lucide-react-native';
-import styles from '../../styles/styles';
+import styles from '@/styles/styles';
 
 const AttendanceScreen = ({ attendanceData, setCurrentScreen }) => (
   <ScrollView
