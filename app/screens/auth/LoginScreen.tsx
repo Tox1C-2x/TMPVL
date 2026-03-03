@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
+// router
+import { useRouter } from "expo-router";
 // Icons
 import { Eye, EyeOff, Check, Sparkles, Fingerprint } from 'lucide-react-native';
 
@@ -23,7 +25,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { API_BASE } from '../../../src/constants/api';
 
 const LoginScreen = ({ navigation, onLoginSuccess }) => {
-  // Modes: 'login' (normal), 'setup_mpin' (first time), 'quick_auth' (next time)
+  const router = useRouter();
   const [viewMode, setViewMode] = useState('login'); 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -47,8 +49,12 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
       if (jsonValue != null) {
         const data = JSON.parse(jsonValue);
         setStoredData(data);
-        setViewMode('quick_auth'); 
-        handleBiometricAuth(data);
+        if (data.mpin) {
+            setViewMode('quick_auth'); 
+            handleBiometricAuth(data);
+        } else {
+            setViewMode('login');
+        }
       } else {
         setViewMode('login');
       }
@@ -67,42 +73,45 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/login`, {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ empId, password }),
+        body: JSON.stringify({
+          employee_id: empId,
+          password: password
+        }),
       });
 
       const data = await response.json(); 
 
-      if (data.status === "success") {
+      if (data.success) {
+        // --- SYNCING BACKEND DATA TO FRONTEND PROFILE KEYS ---
         const userData = {
-            empId: data.empId,
-            name: data.name,
-            shop: data.shop,
-            designation: data.designation,
-            shift: data.shift,
-            token: data.token,
-            email: data.email, 
-            mobile: data.mobile || data.phoneNumber || '', 
+          employee_id: data.employee_id, // backend se mapped
+          name: data.full_name || data.name, // handles both backend formats
+          email: data.email,
+          mobile: data.mobile,
+          designation: data.designation || 'Employee',
+          token: data.token,
         };
 
-        await AsyncStorage.setItem('@user_session', JSON.stringify(userData));
+        // Storage mein save karein
+        await AsyncStorage.setItem("@user_session", JSON.stringify(userData));
 
         if (rememberMe) {
             setStoredData(userData);
             setViewMode('setup_mpin');
-            Alert.alert("Setup Security", "Please set a 4-digit MPIN for quick login next time.");
+            Alert.alert("Setup Security", "Please set a 4-digit MPIN for quick login.");
         } else {
             if (onLoginSuccess) onLoginSuccess(userData);
         }
       } 
       else {
-        Alert.alert('Login Failed', data.error || 'Invalid credentials');
+        Alert.alert('Login Failed', data.error || data.message || 'Invalid credentials');
       }
     } catch (err) {
       console.error('Login Error:', err);
-      Alert.alert('Error', 'Server down. Please check after some time.');
+      Alert.alert('Error', 'Server down');
     } finally {
       setIsLoading(false);
     }
@@ -117,10 +126,10 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
       const sessionData = { ...storedData, mpin: mpin };
       try {
           await AsyncStorage.setItem('@user_session', JSON.stringify(sessionData));
-          Alert.alert("Success", "MPIN Set! Next time use MPIN or Fingerprint.");
-          if (onLoginSuccess) onLoginSuccess(storedData);
+          Alert.alert("Success", "MPIN Set! Now you can login quickly.");
+          if (onLoginSuccess) onLoginSuccess(sessionData);
       } catch (e) {
-          Alert.alert("Error", "Could not save login details.");
+          Alert.alert("Error", "Could not save security settings.");
       }
   };
 
@@ -128,7 +137,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
       if (storedData && storedData.mpin === mpin) {
           if (onLoginSuccess) onLoginSuccess(storedData);
       } else {
-          Alert.alert("Wrong MPIN", "Please try again.");
+          Alert.alert("Wrong MPIN", "Access denied. Please try again.");
           setMpin('');
       }
   };
@@ -153,13 +162,10 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   const handleSwitchAccount = async () => {
       await AsyncStorage.removeItem('@user_session');
       setViewMode('login');
+      setStoredData(null);
       setEmpId('');
       setPassword('');
       setMpin('');
-  };
-
-  const handleGoogleLogin = () => {
-    Alert.alert("Coming Soon", "Google login integration is pending.");
   };
 
   if (isLoading) {
@@ -182,7 +188,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
 
         <View style={styles.headerContainer}>
           <Text style={styles.title}>Welcome To TMPVL !</Text>
-          <Text style={styles.subtitle}>Please enter your details</Text>
+          <Text style={styles.subtitle}>Log in to manage your profile</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -190,11 +196,12 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
             <Text style={styles.label}>Employee ID</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your ID"
+              placeholder="e.g. 1000123"
               placeholderTextColor="#9CA3AF"
               value={empId}
               onChangeText={setEmpId}
               autoCapitalize="none"
+              keyboardType="numeric"
             />
           </View>
 
@@ -209,7 +216,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                 value={password}
                 onChangeText={setPassword}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 {showPassword ? <EyeOff size={20} color="#6B7280" /> : <Eye size={20} color="#6B7280" />}
                 </TouchableOpacity>
             </View>
@@ -220,10 +227,10 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                     {rememberMe && <Check size={12} color="#fff" strokeWidth={4} />}
                 </View>
-                <Text style={styles.rememberText}>Remember for 30 days</Text>
+                <Text style={styles.rememberText}>Remember Me</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => Alert.alert('Reset', 'Contact Admin to reset password.')}>
+            <TouchableOpacity onPress={() => Alert.alert('Help', 'Please contact IT department to reset password.')}>
                 <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
@@ -232,15 +239,10 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
             <Text style={styles.loginButtonText}>Log In</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
-            <Text style={styles.googleIcon}>G</Text> 
-            <Text style={styles.googleButtonText}>Log in with Google</Text>
-          </TouchableOpacity>
-
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('register')}>
-              <Text style={styles.signUpText}>Sign Up</Text>
+            <Text style={styles.footerText}>New employee? </Text>
+            <TouchableOpacity onPress={() => router.push('/screens/auth/RegisterScreen')}>
+              <Text style={styles.signUpText}>Register Now</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -250,8 +252,8 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
       {/* SETUP MPIN */}
       {viewMode === 'setup_mpin' && (
           <View style={styles.centerContainer}>
-              <Text style={styles.title}>Set MPIN</Text>
-              <Text style={styles.subtitle}>Create a 4-digit PIN for quick access</Text>
+              <Text style={styles.title}>Create MPIN</Text>
+              <Text style={styles.subtitle}>Enter 4 digits for quick unlock</Text>
               
               <TextInput
                   style={styles.mpinInput}
@@ -264,7 +266,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
               />
 
               <TouchableOpacity style={styles.loginButton} onPress={handleSetMpin}>
-                  <Text style={styles.loginButtonText}>Save MPIN</Text>
+                  <Text style={styles.loginButtonText}>Save & Finish</Text>
               </TouchableOpacity>
           </View>
       )}
@@ -276,8 +278,9 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                 <Sparkles size={40} color="#000" fill="#000" />
               </View>
               
-              <Text style={styles.title}>Welcome, {storedData?.name}!</Text>
-              <Text style={styles.subtitle}>Enter MPIN to continue</Text>
+              <Text style={styles.title}>Welcome back,</Text>
+              <Text style={styles.userNameText}>{storedData?.name}</Text>
+              <Text style={styles.subtitle}>Enter MPIN to Unlock</Text>
 
               <TextInput
                   style={styles.mpinInput}
@@ -287,21 +290,23 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                   onChangeText={setMpin}
                   secureTextEntry
                   placeholder="••••"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#D1D5DB"
               />
 
               <TouchableOpacity style={styles.loginButton} onPress={handleMpinLogin}>
-                  <Text style={styles.loginButtonText}>Unlock</Text>
+                  <Text style={styles.loginButtonText}>Unlock App</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.bioButton} onPress={() => handleBiometricAuth(null)}>
-                  <Fingerprint size={24} color="#111827" />
-                  <Text style={styles.bioText}>Use Biometric</Text>
-              </TouchableOpacity>
+              <View style={styles.quickOptions}>
+                <TouchableOpacity style={styles.bioButton} onPress={() => handleBiometricAuth(null)}>
+                    <Fingerprint size={28} color="#111827" />
+                    <Text style={styles.bioText}>Touch ID</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.switchButton} onPress={handleSwitchAccount}>
-                  <Text style={styles.switchText}>Switch Account</Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={styles.switchButton} onPress={handleSwitchAccount}>
+                    <Text style={styles.switchText}>Switch Account</Text>
+                </TouchableOpacity>
+              </View>
           </View>
       )}
 
@@ -309,221 +314,195 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   );
 };
 
-// --------------- CLEAN STYLES (Line by Line) ---------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 20,
+    paddingHorizontal: 28,
+    paddingTop: 60,
+    paddingBottom: 40,
     justifyContent: 'center',
   },
-  
   centerContainer: {
     flex: 1,
-    padding: 24,
+    padding: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
-  
   headerContainer: {
     alignItems: 'center',
     marginBottom: 40,
   },
-  
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: '#111827',
     marginBottom: 8,
-    letterSpacing: -0.5,
   },
-  
+  userNameText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 15,
+  },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6B7280',
     textAlign: 'center',
+    lineHeight: 22,
   },
-  
   formContainer: {
     width: '100%',
   },
-  
   inputWrapper: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#374151',
-    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 10,
   },
-  
   input: {
-    height: 44,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    height: 50,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#F3F4F6',
     fontSize: 16,
     color: '#111827',
-    paddingVertical: 8,
+    fontWeight: '500',
   },
-  
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    height: 44,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#F3F4F6',
+    height: 50,
   },
-  
   passwordInput: {
     flex: 1,
     fontSize: 16,
     color: '#111827',
-    paddingVertical: 8,
+    fontWeight: '500',
   },
-  
+  eyeIcon: {
+    padding: 5,
+  },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 35,
   },
-  
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  
   checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
     borderColor: '#D1D5DB',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 10,
   },
-  
   checkboxChecked: {
     backgroundColor: '#111827',
     borderColor: '#111827',
   },
-  
   rememberText: {
-    fontSize: 13,
-    color: '#4B5563',
-  },
-  
-  forgotText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#4B5563',
     fontWeight: '500',
   },
-  
+  forgotText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '700',
+  },
   loginButton: {
     backgroundColor: '#111827',
-    height: 50,
-    borderRadius: 50,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 25,
     width: '100%',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
-  
-  googleButton: {
-    backgroundColor: '#F3F4F6',
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginBottom: 40,
-  },
-  
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginRight: 10,
-  },
-  
-  googleButtonText: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
+    marginTop: 10,
   },
-  
   footerText: {
     color: '#6B7280',
     fontSize: 14,
   },
-  
   signUpText: {
     color: '#111827',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
   },
-  
-  // MPIN Specific Styles
   mpinInput: {
-    fontSize: 32,
-    letterSpacing: 10,
+    fontSize: 36,
+    letterSpacing: 15,
     textAlign: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: '#111827',
-    width: 150,
-    marginBottom: 30,
+    width: 180,
+    marginBottom: 40,
+    marginTop: 20,
     color: '#111827',
+    fontWeight: '700',
     paddingVertical: 10,
   },
-  
-  bioButton: {
-    flexDirection: 'row',
+  quickOptions: {
     alignItems: 'center',
-    marginBottom: 30,
+    width: '100%',
+    marginTop: 10,
   },
-  
+  bioButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: 15,
+    marginBottom: 10,
+  },
   bioText: {
-    marginLeft: 10,
-    fontSize: 16,
+    marginTop: 8,
+    fontSize: 14,
     color: '#111827',
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  
   switchButton: {
-    padding: 10,
+    padding: 15,
   },
-  
   switchText: {
     color: '#6B7280',
     fontSize: 14,
+    fontWeight: '500',
     textDecorationLine: 'underline',
   },
 });
 
 export default LoginScreen;
+

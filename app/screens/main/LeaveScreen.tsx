@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,96 +6,149 @@ import {
   TouchableOpacity, 
   TextInput, 
   Platform, 
-  Alert 
+  Alert,
+  ActivityIndicator
 } from 'react-native';
-import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react-native'; // Icons update kiye
+import { ArrowLeft } from 'lucide-react-native'; 
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import styles from '@/styles/styles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE } from '../../../src/constants/api';
 
 const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
   const [leaveType, setLeaveType] = useState('Casual Leave');
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
   const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [userToken, setUserToken] = useState(null);
 
-  // 1. LEAVE HISTORY STATE --
-  const [leaveHistory, setLeaveHistory] = useState([
-    {
-      id: 1,
-      type: 'Sick Leave',
-      from: '10/11/2025',
-      to: '12/11/2025',
-      days: 3,
-      status: 'Approved',
-      reason: 'Viral Fever'
-    },
-    {
-      id: 2,
-      type: 'Casual Leave',
-      from: '01/11/2025',
-      to: '01/11/2025',
-      days: 1,
-      status: 'Rejected',
-      reason: 'Personal work'
+  // 1. Load Session and Fetch History on Mount
+  useEffect(() => {
+    const loadSessionAndData = async () => {
+      try {
+        const session = await AsyncStorage.getItem("@user_session");
+        if (session) {
+          const parsedSession = JSON.parse(session);
+          if (parsedSession.token) {
+            setUserToken(parsedSession.token);
+            // Fetch history immediately using the parsed token
+            await fetchLeaveHistory(parsedSession.token);
+          }
+        } else {
+          setHistoryLoading(false);
+        }
+      } catch (error) {
+        console.error("Session Load Error:", error);
+        setHistoryLoading(false);
+      }
+    };
+
+    loadSessionAndData();
+  }, []);
+
+  // 2. FETCH LEAVE HISTORY FROM BACKEND
+  const fetchLeaveHistory = async (tokenToUse) => {
+    const token = tokenToUse || userToken;
+    if (!token) return;
+
+    try {
+      setHistoryLoading(true);
+      const response = await fetch(`${API_BASE}/api/leave/my-leaves`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setLeaveHistory(data.leaves || []);
+      }
+    } catch (error) {
+      console.error("Fetch History Error:", error);
+    } finally {
+      setHistoryLoading(false);
     }
-  ]);
+  };
 
-  // 2. HELPER FUNCTION: DATE FORMATTER (DD/MM/YYYY)
   const formatDate = (date) => {
     const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Month 0 se start hota hai
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
 
+  // Backend expects YYYY-MM-DD
+  const formatDateForAPI = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+
   const onFromDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || fromDate;
     setShowFromPicker(Platform.OS === 'ios');
-    setFromDate(currentDate);
+    if (selectedDate) setFromDate(selectedDate);
   };
 
   const onToDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || toDate;
     setShowToPicker(Platform.OS === 'ios');
-    setToDate(currentDate);
+    if (selectedDate) setToDate(selectedDate);
   };
 
-  // 3. SUBMIT LEAVE FUNCTION
-  const handleSubmit = () => {
+  // 3. SUBMIT LEAVE TO BACKEND
+  const handleSubmit = async () => {
     if (!reason.trim()) {
       Alert.alert("Error", "Please enter a reason for leave.");
       return;
     }
 
-    // New Leave Object create --
-    const newLeave = {
-      id: Date.now(), // Unique ID
-      type: leaveType,
-      from: formatDate(fromDate),
-      to: formatDate(toDate),
-      days: Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1, // Days calculate karna
-      status: 'Pending', // Default status
-      reason: reason
-    };
+    if (!userToken) {
+      Alert.alert("Error", "User session not found. Please login again.");
+      return;
+    }
 
-    // History 
-    setLeaveHistory([newLeave, ...leaveHistory]);
-    
-    // Reset Form
-    setReason('');
-    Alert.alert("Success", "Leave Application Submitted Successfully!");
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/leave/apply`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}`
+        },
+        body: JSON.stringify({
+          leave_type: leaveType,
+          reason: reason,
+          start_date: formatDateForAPI(fromDate),
+          end_date: formatDateForAPI(toDate)
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        Alert.alert("Success", "Leave Application Submitted Successfully!");
+        setReason('');
+        // Refresh list after success
+        fetchLeaveHistory(userToken);
+      } else {
+        Alert.alert("Error", result.message || "Failed to apply leave");
+      }
+    } catch (error) {
+      console.error("Apply Leave Error:", error);
+      Alert.alert("Error", "Network error.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Helper to get status color
   const getStatusColor = (status) => {
-    switch(status) {
-      case 'Approved': return '#16A34A'; // Green
-      case 'Rejected': return '#DC2626'; // Red
-      default: return '#F59E0B'; // Orange (Pending)
+    switch(status?.toLowerCase()) {
+      case 'approved': return '#16A34A';
+      case 'rejected': return '#DC2626';
+      default: return '#F59E0B';
     }
   };
 
@@ -106,36 +159,15 @@ const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.screenHeader}>
-        <TouchableOpacity
-          onPress={() => setCurrentScreen('home')}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => setCurrentScreen('home')} style={styles.backButton}>
           <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.screenTitle}>Leave Management</Text>
       </View>
 
-      {/* Date Pickers (Hidden by default) */}
-      {showFromPicker && (
-        <DateTimePicker
-          testID="dateTimePickerFrom"
-          value={fromDate}
-          mode="date"
-          display="default"
-          onChange={onFromDateChange}
-        />
-      )}
-      {showToPicker && (
-        <DateTimePicker
-          testID="dateTimePickerTo"
-          value={toDate}
-          mode="date"
-          display="default"
-          onChange={onToDateChange}
-        />
-      )}
+      {showFromPicker && <DateTimePicker value={fromDate} mode="date" display="default" onChange={onFromDateChange} />}
+      {showToPicker && <DateTimePicker value={toDate} mode="date" display="default" onChange={onToDateChange} />}
 
-      {/* Leave Balance Cards */}
       <View style={styles.gridContainer}>
         <View style={[styles.card, styles.gridItemThird]}>
           <Text style={[styles.fontSemiBold, styles.textBlue600]}>Casual</Text>
@@ -154,7 +186,6 @@ const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
         </View>
       </View>
 
-      {/* Apply Leave Form */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Apply for Leave</Text>
         <View style={styles.form}>
@@ -176,21 +207,13 @@ const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
           <View style={styles.gridContainer}>
             <View style={[styles.formGroup, styles.gridItemHalf]}>
               <Text style={styles.formLabel}>From Date</Text>
-              <TouchableOpacity
-                style={styles.dateInputButton}
-                onPress={() => setShowFromPicker(true)}
-              >
-                {/* 4. Yahan Format Function Use Kiya */}
+              <TouchableOpacity style={styles.dateInputButton} onPress={() => setShowFromPicker(true)}>
                 <Text style={styles.dateInputText}>{formatDate(fromDate)}</Text>
               </TouchableOpacity>
             </View>
             <View style={[styles.formGroup, styles.gridItemHalf]}>
               <Text style={styles.formLabel}>To Date</Text>
-              <TouchableOpacity
-                style={styles.dateInputButton}
-                onPress={() => setShowToPicker(true)}
-              >
-                {/* 4. Yahan Format Function Use Kiya */}
+              <TouchableOpacity style={styles.dateInputButton} onPress={() => setShowToPicker(true)}>
                 <Text style={styles.dateInputText}>{formatDate(toDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -201,32 +224,39 @@ const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
             <TextInput
               style={styles.reasonInput}
               placeholder="Enter reason for leave..."
-              placeholderTextColor="#9CA3AF"
               value={reason}
               onChangeText={setReason}
               multiline={true}
-              numberOfLines={4}
+              numberOfLines={2}
+          
             />
           </View>
           
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>
-              Submit Leave Application
-            </Text>
+          <TouchableOpacity 
+            style={[styles.submitButton, loading && { opacity: 0.7 }]} 
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.submitButtonText}>Submit Leave Application</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 5. LEAVE HISTORY SECTION (New) */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Leave History</Text>
         
-        {leaveHistory.length === 0 ? (
+        {historyLoading ? (
+          <ActivityIndicator color="#3B82F6" style={{ margin: 20 }} />
+        ) : leaveHistory.length === 0 ? (
           <Text style={{color: '#6B7280', textAlign: 'center', padding: 10}}>No leave history found</Text>
         ) : (
           <View style={{ gap: 12 }}>
             {leaveHistory.map((item) => (
-              <View key={item.id} style={{
+              <View key={item.id || item._id} style={{
                 borderWidth: 1,
                 borderColor: '#E5E7EB',
                 borderRadius: 8,
@@ -234,25 +264,21 @@ const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
                 backgroundColor: '#F9FAFB'
               }}>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
-                  <Text style={{fontWeight: 'bold', fontSize: 16}}>{item.type}</Text>
+                  <Text style={{fontWeight: 'bold', fontSize: 16}}>{item.leave_type || item.type}</Text>
                   <View style={{
-                    backgroundColor: getStatusColor(item.status) + '20', // Light bg
+                    backgroundColor: getStatusColor(item.status) + '20',
                     paddingHorizontal: 8,
                     paddingVertical: 2,
                     borderRadius: 4
                   }}>
-                    <Text style={{
-                      color: getStatusColor(item.status),
-                      fontWeight: '600',
-                      fontSize: 12
-                    }}>{item.status}</Text>
+                    <Text style={{ color: getStatusColor(item.status), fontWeight: '600', fontSize: 12 }}>
+                      {item.status}
+                    </Text>
                   </View>
                 </View>
-
                 <Text style={{color: '#4B5563', fontSize: 14, marginBottom: 4}}>
-                  {item.from} - {item.to} ({item.days} days)
+                  {item.start_date} - {item.end_date}
                 </Text>
-
                 <Text style={{color: '#6B7280', fontSize: 13, fontStyle: 'italic'}}>
                   Reason: {item.reason}
                 </Text>
@@ -261,7 +287,6 @@ const LeaveScreen = ({ leaveBalance, setCurrentScreen }) => {
           </View>
         )}
       </View>
-
     </ScrollView>
   );
 };

@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   // Salary Screen (Original UI)
   salaryCard: {
     borderRadius: 12,
-    padding: 24,
+    padding: 16,
     marginBottom: 16,
   },
   salaryCardHeader: {
@@ -495,20 +495,20 @@ const styles = StyleSheet.create({
 
   // Leave Screen (Original UI)
   leaveBalanceValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   form: {
-    gap: 16,
+    gap: 4,
   },
   formGroup: {
-    gap: 4,
+    gap: 2,
   },
   formLabel: {
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   pickerContainer: {
     borderWidth: 1,
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   submitButton: {
     width: '100%',
     backgroundColor: '#2563EB',
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -545,9 +545,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 8,
-    padding: 16,
+    padding: 8,
     backgroundColor: 'white',
-    minHeight: 100,
+    minHeight: 70,
     textAlignVertical: 'top',
     fontSize: 16,
   },

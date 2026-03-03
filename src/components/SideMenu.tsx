@@ -15,7 +15,7 @@ import {
   TouchableWithoutFeedback
 } from 'react-native';
 import { 
-  User, Bell, LogOut, Camera, X, Fingerprint, Contrast, 
+  User, Bell, LogOut, Camera, ArrowLeft, Fingerprint, Contrast, 
   FileText, Shield, ChevronRight, Sparkles, Phone, HelpCircle
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,7 +38,7 @@ const SideMenu = ({
   const [localUser, setLocalUser] = useState({
       name: 'Guest',
       designation: 'Employee',
-      empId: '---',
+      employee_id: '---',
       mobile: ''
   });
 
@@ -55,28 +55,32 @@ const SideMenu = ({
         Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       ]).start();
 
-      // 2. FETCH LATEST DATA FROM STORAGE
-      const fetchLatestData = async () => {
-          try {
-              const storedJson = await AsyncStorage.getItem('@user_session');
-              if (storedJson) {
-                  const data = JSON.parse(storedJson);
-                  setLocalUser({
-                      name: data.name || user?.name || 'Guest',
-                      // Yahan update pakka dikhega
-                      designation: data.designation || user?.designation || 'Employee', 
-                      empId: data.empId || user?.empId || '---',
-                      mobile: data.mobile || user?.mobile || ''
-                  });
-              } else {
-                  // Fallback to Props
-                  setLocalUser({
-                    name: user?.name || 'Guest',
-                    designation: user?.designation || 'Employee',
-                    empId: user?.empId || '---',
-                    mobile: user?.mobile || ''
-                  });
-              }
+// 2. FETCH LATEST DATA FROM STORAGE
+const fetchLatestData = async () => {
+  try {
+    const storedJson = await AsyncStorage.getItem('@user_session');
+
+    if (storedJson) {
+      const data = JSON.parse(storedJson);
+
+      console.log("DRAWER SESSION:", data); // Debug
+
+      setLocalUser({
+        name: data.name || 'Guest',
+        designation: data.designation || 'Employee',
+        empId: data.employee_id || '---',   // ✅ FIXED
+        mobile: data.mobile || ''
+      });
+
+    } else {
+      setLocalUser({
+        name: 'Guest',
+        designation: 'Employee',
+        empId: '---',
+        mobile: ''
+      });
+    }
+
           } catch (e) {
               console.log("Error fetching side menu data", e);
           }
@@ -123,7 +127,7 @@ const SideMenu = ({
                         {/* Header */}
                         <View style={styles.headerRow}>
                             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                                <X size={24} color="#111827" />
+                                <ArrowLeft size={24} color="#111827" />
                             </TouchableOpacity>
                             <Sparkles size={24} color="#111827" fill="#111827" style={{ opacity: 0.2 }} />
                         </View>
@@ -249,24 +253,27 @@ const styles = StyleSheet.create({
     elevation: 25 
   },
   
-  headerRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 18,
-    paddingVertical: 15
-  },
+  headerRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingTop: 10,      // kam karo
+  paddingBottom: 20,    // extra space remove
+  paddingHorizontal: 20,
+},
   
   closeButton: { 
     padding: 8, 
     backgroundColor: '#F3F4F6', 
     borderRadius: 50,
-    marginTop: -15,
+    marginTop: -18,
   },
   
-  profileSection: { 
-    marginBottom: 15 
-  },
+  profileSection: {
+  paddingHorizontal: 20,
+  paddingTop: 5,
+  paddingBottom: 25,
+},
   
   avatarRow: { 
     flexDirection: 'row', 
@@ -349,6 +356,12 @@ const styles = StyleSheet.create({
     padding: 8, 
     borderRadius: 8 
   },
+  closeButton: {
+  position: 'absolute',
+  top: 5,      // upar kitna le jana hai (adjust kar sakte ho)
+  left: 5,     // left spacing
+  zIndex: 10,
+},
   
   userEmpId: { 
     fontSize: 12, 
